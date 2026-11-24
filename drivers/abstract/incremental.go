@@ -2,6 +2,7 @@ package abstract
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -18,6 +19,9 @@ import (
 )
 
 func (a *AbstractDriver) Incremental(mainCtx context.Context, pool *destination.WriterPool, streams ...types.StreamInterface) error {
+	cursorReader, readsSourceCursors := a.driver.(IncrementalCursorReader)
+	sourceFilter, filtersInReader := a.driver.(SourceFilterDriver)
+	applyWriterFilter := !filtersInReader || !sourceFilter.AppliesSourceFilters()
 	backfillWaitChannel := make(chan string, len(streams))
 	defer close(backfillWaitChannel)
 
@@ -25,7 +29,7 @@ func (a *AbstractDriver) Incremental(mainCtx context.Context, pool *destination.
 		primaryCursor, secondaryCursor := stream.Cursor()
 		prevPrimaryCursor := a.state.GetCursor(stream.Self(), primaryCursor)
 		prevSecondaryCursor := a.state.GetCursor(stream.Self(), secondaryCursor)
-		if a.state.HasCompletedBackfill(stream.Self()) && (prevPrimaryCursor != nil && (secondaryCursor == "" || prevSecondaryCursor != nil)) {
+		if a.state.HasCompletedBackfill(stream.Self()) && (readsSourceCursors || (prevPrimaryCursor != nil && (secondaryCursor == "" || prevSecondaryCursor != nil))) {
 			logger.Infof("Backfill skipped for stream[%s], already completed", stream.ID())
 			backfillWaitChannel <- stream.ID()
 			return nil
@@ -65,19 +69,28 @@ func (a *AbstractDriver) Incremental(mainCtx context.Context, pool *destination.
 			index, _ := utils.ArrayContains(streams, func(s types.StreamInterface) bool { return s.ID() == streamID })
 			stream := streams[index]
 			primaryCursor, secondaryCursor := stream.Cursor()
-			// TODO: make inremental state consistent save it as string and typecast while reading
-			// get cursor column from state and typecast it to cursor column type for comparisons
-			maxPrimaryCursorValue, maxSecondaryCursorValue, err := a.getIncrementCursorFromState(primaryCursor, secondaryCursor, stream)
-			if err != nil {
-				return fmt.Errorf("failed to get incremental cursor value from state: %w", err)
+			maxPrimaryCursorValue := a.state.GetCursor(stream.Self(), primaryCursor)
+			maxSecondaryCursorValue := a.state.GetCursor(stream.Self(), secondaryCursor)
+			if !readsSourceCursors {
+				maxPrimaryCursorValue, maxSecondaryCursorValue, err = a.getIncrementCursorFromState(primaryCursor, secondaryCursor, stream)
+				if err != nil {
+					return fmt.Errorf("failed to get incremental cursor value from state: %w", err)
+				}
 			}
 
 			// create incremental context, so that main context not affected if incremental retries
 			incrementalCtx, incrementalCtxCancel := context.WithCancel(gCtx)
 			defer incrementalCtxCancel()
 
-			threadID := generateThreadID(stream.ID(), fmt.Sprintf("%v_%v", maxPrimaryCursorValue, maxSecondaryCursorValue))
-			inserter, prevMetadataState, err := pool.NewWriter(incrementalCtx, stream, destination.WithThreadID(threadID), destination.WithApplyFilter(true))
+			threadKey := fmt.Sprintf("%v_%v", maxPrimaryCursorValue, maxSecondaryCursorValue)
+			if readsSourceCursors {
+				threadKey, err = sourceCursorThreadKey(primaryCursor, secondaryCursor, maxPrimaryCursorValue, maxSecondaryCursorValue)
+				if err != nil {
+					return err
+				}
+			}
+			threadID := generateThreadID(stream.ID(), threadKey)
+			inserter, prevMetadataState, err := pool.NewWriter(incrementalCtx, stream, destination.WithThreadID(threadID), destination.WithApplyFilter(applyWriterFilter))
 			if err != nil {
 				return fmt.Errorf("failed to create new writer thread: %w", err)
 			}
@@ -123,7 +136,10 @@ func (a *AbstractDriver) Incremental(mainCtx context.Context, pool *destination.
 				}
 
 				// detect cursor value difference
-				if mtState[primaryCursor] == nil || (secondaryCursor != "" && mtState[secondaryCursor] == nil) {
+				_, hasPrimary := mtState[primaryCursor]
+				_, hasSecondary := mtState[secondaryCursor]
+				if !hasPrimary || (secondaryCursor != "" && !hasSecondary) ||
+					(!readsSourceCursors && (mtState[primaryCursor] == nil || (secondaryCursor != "" && mtState[secondaryCursor] == nil))) {
 					return errs.Precondition(errs.StateInvalid,
 						fmt.Sprintf("%s.cursor_field_changed", a.driver.Type()),
 						fmt.Errorf("cursor value is nil in the metadata state for stream[%s] and thread[%s], cursor field got changed. Please run clear destination first", stream.ID(), threadID))
@@ -141,18 +157,24 @@ func (a *AbstractDriver) Incremental(mainCtx context.Context, pool *destination.
 
 			filterDataBySelectedColumnsFn := stream.RetainSelectedColumns()
 
-			// No retry logic here - retry happens at Read level
-			return a.driver.StreamIncrementalChanges(incrementalCtx, stream, func(ctx context.Context, record map[string]any, sourceBytes int64) error {
+			pushRecord := func(ctx context.Context, record map[string]any, sourceBytes int64) error {
 				recordsRead = true
-				maxPrimaryCursorValue, maxSecondaryCursorValue = a.getMaxIncrementCursorFromData(primaryCursor, secondaryCursor, maxPrimaryCursorValue, maxSecondaryCursorValue, record)
+				if !readsSourceCursors {
+					maxPrimaryCursorValue, maxSecondaryCursorValue = a.getMaxIncrementCursorFromData(primaryCursor, secondaryCursor, maxPrimaryCursorValue, maxSecondaryCursorValue, record)
+				}
 				olakeColumns := map[string]any{
-					constants.OlakeID:        utils.GetKeysHash(record, stream.GetStream().SourceDefinedPrimaryKey.Array()...),
+					constants.OlakeID:        a.recordID(stream, record),
 					constants.OpType:         "u",
 					constants.OlakeTimestamp: time.Now().UTC(),
 				}
 				filteredData := filterDataBySelectedColumnsFn(record)
 				return inserter.Push(ctx, types.CreateRawRecord(filteredData, olakeColumns, nil), sourceBytes)
-			})
+			}
+			if readsSourceCursors {
+				maxPrimaryCursorValue, maxSecondaryCursorValue, err = cursorReader.ReadIncrementalChanges(incrementalCtx, stream, pushRecord)
+				return err
+			}
+			return a.driver.StreamIncrementalChanges(incrementalCtx, stream, pushRecord)
 		})
 		return nil
 	})
@@ -162,6 +184,16 @@ func (a *AbstractDriver) Incremental(mainCtx context.Context, pool *destination.
 	}
 
 	return err
+}
+
+// A source cursor may contain the separator or spell a nil value. Include the
+// names and types in the input so distinct cursor states cannot share a writer ID.
+func sourceCursorThreadKey(primaryField, secondaryField string, primary, secondary any) (string, error) {
+	value, err := json.Marshal([4]any{primaryField, secondaryField, primary, secondary})
+	if err != nil {
+		return "", fmt.Errorf("failed to encode incremental checkpoints: %w", err)
+	}
+	return fmt.Sprintf("%x", sha256.Sum256(value)), nil
 }
 
 // RefomratCursorValue to parse the cursor value to the correct type

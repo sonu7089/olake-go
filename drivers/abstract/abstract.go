@@ -157,19 +157,20 @@ func (a *AbstractDriver) Discover(ctx context.Context, maxDiscoverThreads int, s
 			convStream.UpsertField(column, typ, true, true)
 		}
 
-		// priority to default sync mode (cdc -> incremental -> strict_cdc)
-		if convStream.SupportedSyncModes.Exists(types.CDC) && a.driver.CDCSupported() {
-			convStream.SyncMode = types.CDC
-		} else if convStream.SupportedSyncModes.Exists(types.INCREMENTAL) {
-			convStream.SyncMode = types.INCREMENTAL
-			// Default cursor field: lexicographically smallest available field, for deterministic output.
-			if convStream.AvailableCursorFields.Len() > 0 {
-				convStream.CursorField = slices.Min(convStream.AvailableCursorFields.Array())
+		if !convStream.SupportedSyncModes.Exists(convStream.SyncMode) {
+			switch {
+			case convStream.SupportedSyncModes.Exists(types.CDC) && a.driver.CDCSupported():
+				convStream.SyncMode = types.CDC
+			case convStream.SupportedSyncModes.Exists(types.INCREMENTAL):
+				convStream.SyncMode = types.INCREMENTAL
+			case convStream.SupportedSyncModes.Exists(types.STRICTCDC):
+				convStream.SyncMode = types.STRICTCDC
+			default:
+				convStream.SyncMode = types.FULLREFRESH
 			}
-		} else if convStream.SupportedSyncModes.Exists(types.STRICTCDC) {
-			convStream.SyncMode = types.STRICTCDC
-		} else {
-			convStream.SyncMode = types.FULLREFRESH
+		}
+		if convStream.SyncMode == types.INCREMENTAL && convStream.CursorField == "" && convStream.AvailableCursorFields.Len() > 0 {
+			convStream.CursorField = slices.Min(convStream.AvailableCursorFields.Array())
 		}
 
 		// add default stream properties; the update type is chosen by types.ApplyDestinationDefaults

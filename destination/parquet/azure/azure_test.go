@@ -129,7 +129,7 @@ func TestNewAzureStore(t *testing.T) {
 		},
 		{
 			name: "sas token",
-			cfg: Config{
+			cfg: Config{ // #nosec G101 -- Synthetic SAS token used only to exercise configuration.
 				AuthType:    AuthSASToken,
 				AccountName: "olakeaccount",
 				Container:   "container",

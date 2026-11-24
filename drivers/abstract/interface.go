@@ -18,6 +18,23 @@ type SampledSchemaProducer interface {
 	ProduceSampledSchema(ctx context.Context, streamID types.StreamID, limit int) (*types.Stream, error)
 }
 
+// IncrementalCursorReader returns checkpoints in the source's comparison format when
+// the values written to the destination cannot be used to reconstruct them.
+type IncrementalCursorReader interface {
+	ReadIncrementalChanges(context.Context, types.StreamInterface, BackfillMsgFn) (primary, secondary any, err error)
+}
+
+// RecordIDProvider supplies an ID when the shared key encoding cannot represent
+// the source's key unambiguously.
+type RecordIDProvider interface {
+	RecordID(types.StreamInterface, map[string]any) string
+}
+
+// SourceFilterDriver applies the stream's filter while reading source records.
+type SourceFilterDriver interface {
+	AppliesSourceFilters() bool
+}
+
 type BackfillMsgFn func(ctx context.Context, message map[string]any, sourceBytes int64) error
 type CDCMsgFn func(ctx context.Context, message CDCChange) error
 

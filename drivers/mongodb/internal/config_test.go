@@ -19,7 +19,7 @@ func TestConfig_URI(t *testing.T) {
 		wantURI     string
 		notContains []string
 	}{
-		{
+		{ // #nosec G101 -- URI fixture uses fake credentials.
 			name: "strips tls file params when ssl enabled",
 			config: &Config{
 				Hosts:    []string{"mongo.example.com:27017"},
@@ -43,7 +43,7 @@ func TestConfig_URI(t *testing.T) {
 				"tlsCertificateKeyFile",
 			},
 		},
-		{
+		{ // #nosec G101 -- URI fixture uses fake credentials.
 			name: "preserves tls file params without ssl",
 			config: &Config{
 				Hosts:    []string{"mongo.example.com:27017"},
@@ -57,7 +57,7 @@ func TestConfig_URI(t *testing.T) {
 			},
 			wantURI: "mongodb://user:pass@mongo.example.com:27017/?authSource=admin&tls=true&tlsCAFile=%2Fcerts%2Froot-ca.crt",
 		},
-		{
+		{ // #nosec G101 -- URI fixture uses fake credentials.
 			name: "adds tls when ssl enabled",
 			config: &Config{
 				Hosts:    []string{"mongo.example.com:27017"},
@@ -105,7 +105,7 @@ func TestConfig_URI(t *testing.T) {
 			},
 			wantURI: "mongodb://olake-oidc-client@mongo.internal:27017/?authMechanism=MONGODB-OIDC&authSource=%24external",
 		},
-		{
+		{ // #nosec G101 -- URI fixture uses fake credentials.
 			name: "srv defaults read preference without replica set",
 			config: &Config{
 				Hosts:    []string{"cluster.example.mongodb.net"},
@@ -116,7 +116,7 @@ func TestConfig_URI(t *testing.T) {
 			},
 			wantURI: "mongodb+srv://user:pass@cluster.example.mongodb.net/?authSource=admin&readPreference=secondaryPreferred",
 		},
-		{
+		{ // #nosec G101 -- URI fixture uses fake credentials.
 			name: "srv honors explicit read preference without replica set",
 			config: &Config{
 				Hosts:          []string{"cluster.example.mongodb.net"},
@@ -128,7 +128,7 @@ func TestConfig_URI(t *testing.T) {
 			},
 			wantURI: "mongodb+srv://user:pass@cluster.example.mongodb.net/?authSource=admin&readPreference=secondary",
 		},
-		{
+		{ // #nosec G101 -- URI fixture uses fake credentials.
 			name: "replica set defaults read preference",
 			config: &Config{
 				Hosts:      []string{"mongo.example.com:27017"},
@@ -139,7 +139,7 @@ func TestConfig_URI(t *testing.T) {
 			},
 			wantURI: "mongodb://user:pass@mongo.example.com:27017/?authSource=admin&readPreference=secondaryPreferred&replicaSet=rs0",
 		},
-		{
+		{ // #nosec G101 -- URI fixture uses fake credentials.
 			name: "explicit read preference without replica set or srv",
 			config: &Config{
 				Hosts:          []string{"mongo.example.com:27017"},
@@ -150,7 +150,7 @@ func TestConfig_URI(t *testing.T) {
 			},
 			wantURI: "mongodb://user:pass@mongo.example.com:27017/?authSource=admin&readPreference=nearest",
 		},
-		{
+		{ // #nosec G101 -- URI fixture uses fake credentials.
 			name: "additional params override read preference",
 			config: &Config{
 				Hosts:          []string{"mongo.example.com:27017"},
@@ -354,13 +354,13 @@ func TestConfig_Validate(t *testing.T) {
 }
 
 type wantTLS struct {
-	nilConfig          bool
-	insecureSkipVerify bool
-	serverName         string
-	minVersion         uint16
-	hasRootCAs         bool
-	hasVerifyPeerCert  bool
-	certCount          int
+	nilConfig           bool
+	insecureSkipVerify  bool
+	serverName          string
+	minVersion          uint16
+	hasRootCAs          bool
+	hasVerifyConnection bool
+	certCount           int
 }
 
 func TestConfig_buildTLSConfig(t *testing.T) {
@@ -399,10 +399,10 @@ func TestConfig_buildTLSConfig(t *testing.T) {
 				},
 			},
 			want: wantTLS{
-				insecureSkipVerify: true,
-				minVersion:         tls.VersionTLS12,
-				hasRootCAs:         true,
-				hasVerifyPeerCert:  true,
+				insecureSkipVerify:  true,
+				minVersion:          tls.VersionTLS12,
+				hasRootCAs:          true,
+				hasVerifyConnection: true,
 			},
 		},
 		{
@@ -417,11 +417,11 @@ func TestConfig_buildTLSConfig(t *testing.T) {
 				},
 			},
 			want: wantTLS{
-				insecureSkipVerify: true,
-				minVersion:         tls.VersionTLS12,
-				hasRootCAs:         true,
-				hasVerifyPeerCert:  true,
-				certCount:          1,
+				insecureSkipVerify:  true,
+				minVersion:          tls.VersionTLS12,
+				hasRootCAs:          true,
+				hasVerifyConnection: true,
+				certCount:           1,
 			},
 		},
 		{
@@ -434,10 +434,10 @@ func TestConfig_buildTLSConfig(t *testing.T) {
 				},
 			},
 			want: wantTLS{
-				serverName:        "",
-				minVersion:        tls.VersionTLS12,
-				hasRootCAs:        true,
-				hasVerifyPeerCert: false,
+				serverName:          "",
+				minVersion:          tls.VersionTLS12,
+				hasRootCAs:          true,
+				hasVerifyConnection: false,
 			},
 		},
 		{
@@ -454,10 +454,10 @@ func TestConfig_buildTLSConfig(t *testing.T) {
 				},
 			},
 			want: wantTLS{
-				serverName:        "",
-				minVersion:        tls.VersionTLS12,
-				hasRootCAs:        true,
-				hasVerifyPeerCert: false,
+				serverName:          "",
+				minVersion:          tls.VersionTLS12,
+				hasRootCAs:          true,
+				hasVerifyConnection: false,
 			},
 		},
 	}
@@ -498,11 +498,11 @@ func TestConfig_buildTLSConfig(t *testing.T) {
 			if !tt.want.hasRootCAs && got.RootCAs != nil {
 				t.Fatalf("expected no root CAs, got %#v", got.RootCAs)
 			}
-			if tt.want.hasVerifyPeerCert && got.VerifyPeerCertificate == nil {
+			if tt.want.hasVerifyConnection && got.VerifyConnection == nil {
 				t.Fatalf("expected custom peer certificate verification")
 			}
-			if !tt.want.hasVerifyPeerCert && got.VerifyPeerCertificate != nil {
-				t.Fatalf("expected no custom VerifyPeerCertificate")
+			if !tt.want.hasVerifyConnection && got.VerifyConnection != nil {
+				t.Fatalf("expected no custom VerifyConnection")
 			}
 			if len(got.Certificates) != tt.want.certCount {
 				t.Fatalf("len(Certificates) = %d, want %d", len(got.Certificates), tt.want.certCount)

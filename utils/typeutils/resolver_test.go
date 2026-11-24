@@ -299,3 +299,24 @@ func TestResolve(t *testing.T) {
 		})
 	}
 }
+
+// TestResolveWideningDecimals pins the merged-type path: values of one column arriving at
+// different decimal precisions wipe the field's cached type, which Resolve must recompute
+// as the common ancestor instead of dereferencing nil.
+func TestResolveWideningDecimals(t *testing.T) {
+	narrow, err := ReformatDecimal(types.BigDecimal, "0.99")
+	require.NoError(t, err)
+	wide, err := ReformatDecimal(types.BigDecimal, "10.99")
+	require.NoError(t, err)
+
+	stream := types.NewStream("test_stream", "test_namespace", nil)
+	require.NoError(t, Resolve(stream,
+		map[string]interface{}{"amount": narrow},
+		map[string]interface{}{"amount": wide},
+	))
+
+	property, found := stream.Schema.Properties.Load("amount")
+	require.True(t, found)
+	assert.True(t, property.(*types.Property).Type.Exists(types.DecimalOf(4, 2)),
+		"expected widened decimal(4,2), got %v", property.(*types.Property).Type.Array())
+}

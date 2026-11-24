@@ -102,6 +102,7 @@ const (
 	S3       DriverType = "s3"
 	Kafka    DriverType = "kafka"
 	MSSQL    DriverType = "mssql"
+	DynamoDB DriverType = "dynamodb"
 )
 
 // Drivers where filters are applied in memory after full refresh data is read.

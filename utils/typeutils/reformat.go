@@ -199,7 +199,7 @@ func ReformatDate(v interface{}, isTimestampInDB bool) (time.Time, error) {
 		case []int8:
 			b := make([]byte, 0, len(v))
 			for _, i := range v {
-				b = append(b, byte(i))
+				b = append(b, byte(i)) // #nosec G115 -- Preserve the raw bits of each signed byte.
 			}
 			strVal := string(b)
 			return parseStringTimestamp(strVal, isTimestampInDB)

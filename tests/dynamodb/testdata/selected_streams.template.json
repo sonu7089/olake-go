@@ -1,0 +1,1 @@
+{"selected_streams":{"dynamodb":[{"partition_regex":"","stream_name":"test_table_olake_${suite}","sync_mode":"full_refresh"}]}}

@@ -676,7 +676,7 @@ func (v S3TestVariant) applyParquetStreamingMode(t *testing.T, config *testutils
 	stale := fmt.Sprintf(`"streaming_enabled": %t`, !v.ParquetStreaming)
 	require.Contains(t, string(data), stale, "%s lost its streaming_enabled key", path)
 	data = bytes.ReplaceAll(data, []byte(stale), []byte(want))
-	require.NoError(t, os.WriteFile(path, data, 0o600), "failed to write %s", path)
+	require.NoError(t, testutils.WriteHostFile(path, data), "failed to write %s", path)
 	t.Logf("parquet source streaming_enabled=%t for upcoming syncs", v.ParquetStreaming)
 }
 
@@ -823,14 +823,14 @@ func csvFile(startID int64, vals rowValues, evolved bool) []byte {
 		mixed, _ := mixedValue(id)
 		// null_col is the empty cell after mixed_col: CSV cannot omit a column, so an
 		// empty value is how the variant spells null.
-		b.WriteString(fmt.Sprintf("%d,%s,%t,%v,%d,%s,,%s,%s,%s,%s,%s,%s",
+		fmt.Fprintf(&b, "%d,%s,%t,%v,%d,%s,,%s,%s,%s,%s,%s,%s",
 			id, vals.Str, vals.Bool, vals.Float, vals.Int64, mixed,
 			vals.TS.UTC().Format(time.DateOnly),
 			vals.TS.Format(time.RFC3339),
 			vals.TSMilli.Format(tsMilliLayout),
 			vals.TSMicro.Format(tsMicroLayout),
 			vals.TSNano.Format(tsNanoLayout),
-			excludedColumnValue))
+			excludedColumnValue)
 		if evolved {
 			b.WriteString("," + evolvedColumnValue)
 		}

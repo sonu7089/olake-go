@@ -16,6 +16,7 @@ var uiSchemaMap = map[string]string{
 	"iceberg":  IcebergUISchema,
 	"db2":      DB2UISchema,
 	"kafka":    KafkaUISchema,
+	"dynamodb": DynamoDBUISchema,
 }
 
 const MongoDBUISchema = `{
@@ -774,6 +775,24 @@ const DB2UISchema = `{
         "rows": 1
       }
     }
+  }
+}`
+
+const DynamoDBUISchema = `{
+  "ui:sections": [
+    {"id": "cdc", "title": "Change data capture (CDC)", "cdc": "not_supported"},
+    {"id": "connection", "title": "Connection details", "fields": ["region", "access_key_id", "secret_access_key", "session_token", "endpoint", "table_pattern"]},
+    {"id": "additional", "title": "Additional configuration", "fields": ["consistent_read", "max_threads", "retry_count"]}
+  ],
+  "ui:grid": [
+    { "region": 12, "endpoint": 12 },
+    { "access_key_id": 12, "secret_access_key": 12 },
+    { "session_token": 12, "table_pattern": 12 },
+    { "consistent_read": 12, "max_threads": 12 },
+    { "retry_count": 12 }
+  ],
+  "consistent_read": {
+    "ui:widget": "boolean"
   }
 }`
 

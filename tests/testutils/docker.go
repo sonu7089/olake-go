@@ -6,7 +6,9 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -167,7 +169,9 @@ func DockerRunArgs(cfg *TestConfig, extraFlags []string, olakeArgs []string) []s
 		"-e", fmt.Sprintf("OLAKE_INDEX_DB_DIR=%s", containerTableIndexDir),
 	}
 
-	if u, err := user.Current(); err == nil {
+	// Windows reports a SID as the uid, which a Linux container cannot resolve to a
+	// passwd entry; run as the image default there instead.
+	if u, err := user.Current(); err == nil && runtime.GOOS != "windows" {
 		args = append(args, "--user", u.Uid+":"+u.Gid)
 	}
 
@@ -231,7 +235,7 @@ func DockerExitResult(out []byte, err error, what string) (int, []byte, error) {
 }
 
 func ContainerPath(fileName string) string {
-	return filepath.Join(containerTestDataDir, fileName)
+	return path.Join(containerTestDataDir, fileName)
 }
 
 // SyncArgs builds the `olake sync ...` argument vector run against the driver image, reading cfg's working catalog.

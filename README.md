@@ -44,7 +44,7 @@
 
 ## OLake Go — Super-fast Sync to Apache Iceberg
 
-**OLake Go** supports replication from **transactional databases** such as **PostgreSQL, MySQL, MongoDB, Oracle, DB2, and MSSQL**, **event-streaming systems like Apache Kafka** and **Object-store like S3**, into open data lakehouse formats such as **Apache Iceberg** or **Plain Parquet** — delivering blazing-fast performance with minimal infrastructure cost.
+**OLake Go** supports replication from **transactional databases** such as **PostgreSQL, MySQL, MongoDB, Oracle, DB2, MSSQL, and DynamoDB**, **event-streaming systems like Apache Kafka** and **Object-store like S3**, into open data lakehouse formats such as **Apache Iceberg** or **Plain Parquet** — delivering blazing-fast performance with minimal infrastructure cost.
 
 <h1 align="center" style="border-bottom: none">
     <a href="https://olake.io/olake-go/" target="_blank">
@@ -103,6 +103,7 @@
 | Oracle        | ✅           | WIP  | ✅                |  JDBC based Full Load & Incremental                |  [Oracle Docs](https://olake.io/docs/connectors/oracle/) |
 | DB2          | ✅           | -    | ✅                | JDBC based Full Load & Incremental                 | [DB2 Docs](https://olake.io/docs/connectors/db2/) |
 | MSSQL        | ✅           | ✅   | ✅                | Full Load, CDC & Incremental                        | [MSSQL Docs](https://olake.io/docs/connectors/mssql/) |
+| DynamoDB     | ✅           | -    | ✅                | Parallel Scan full load, cursor-based incremental   | [DynamoDB README](drivers/dynamodb/README.md) |
 
 
 #### Source (S3)

@@ -1,6 +1,11 @@
 package utils
 
 import (
+	"crypto/tls"
+	"encoding/pem"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -8,6 +13,38 @@ import (
 	"github.com/datazip-inc/olake/utils/errs"
 	"github.com/stretchr/testify/require"
 )
+
+func TestVerifyCAChecksResumedTLSConnection(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer server.Close()
+
+	ca := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw})
+	config, err := BuildTLSConfig("different.example.com", &SSLConfig{Mode: SSLModeVerifyCA, ServerCA: string(ca)})
+	require.NoError(t, err)
+	require.NotNil(t, config.VerifyConnection)
+	config.ClientSessionCache = tls.NewLRUClientSessionCache(1)
+	config.ServerName = "different.example.com"
+
+	verify := config.VerifyConnection
+	var verified []bool
+	config.VerifyConnection = func(state tls.ConnectionState) error {
+		verified = append(verified, state.DidResume)
+		return verify(state)
+	}
+	transport := &http.Transport{TLSClientConfig: config, DisableKeepAlives: true}
+	defer transport.CloseIdleConnections()
+	client := &http.Client{Transport: transport}
+	for range 2 {
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL, nil)
+		require.NoError(t, err)
+		response, err := client.Do(req)
+		require.NoError(t, err)
+		_, err = io.Copy(io.Discard, response.Body)
+		require.NoError(t, response.Body.Close())
+		require.NoError(t, err)
+	}
+	require.Equal(t, []bool{false, true}, verified)
+}
 
 func TestSSLCertSource(t *testing.T) {
 	const (

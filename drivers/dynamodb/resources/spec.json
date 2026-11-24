@@ -1,0 +1,61 @@
+{
+  "type": "object",
+  "properties": {
+    "region": {
+      "type": "string",
+      "title": "AWS Region",
+      "description": "AWS region of the DynamoDB tables (e.g., us-east-1). Required unless a custom endpoint is set",
+      "default": "us-east-1"
+    },
+    "access_key_id": {
+      "type": "string",
+      "title": "Access Key ID",
+      "description": "Optional AWS access key ID. If omitted, the AWS endpoint uses the default credential chain and a custom endpoint uses local test credentials"
+    },
+    "secret_access_key": {
+      "type": "string",
+      "title": "Secret Access Key",
+      "description": "AWS secret access key, required when an access key ID is provided",
+      "format": "password"
+    },
+    "session_token": {
+      "type": "string",
+      "title": "Session Token",
+      "description": "AWS session token for temporary credentials (optional, requires access key and secret key)",
+      "format": "password"
+    },
+    "endpoint": {
+      "type": "string",
+      "title": "Custom Endpoint",
+      "description": "Custom DynamoDB endpoint URL (e.g., http://localhost:8000 for DynamoDB Local)",
+      "default": ""
+    },
+    "table_pattern": {
+      "type": "string",
+      "title": "Table Pattern",
+      "description": "Regex pattern to filter which tables to replicate (optional, all tables when empty)",
+      "default": ""
+    },
+    "consistent_read": {
+      "type": "boolean",
+      "title": "Consistent Read",
+      "description": "Use strongly consistent item reads for discovery and full refresh. Incremental sync always uses strongly consistent reads",
+      "default": false
+    },
+    "max_threads": {
+      "type": "integer",
+      "title": "Max Threads",
+      "description": "Number of parallel scan segments used per table",
+      "default": 3,
+      "minimum": 1,
+      "maximum": 1000000
+    },
+    "retry_count": {
+      "type": "integer",
+      "title": "Retry Count",
+      "description": "Number of retries for failed operations",
+      "default": 3,
+      "minimum": 0
+    }
+  }
+}

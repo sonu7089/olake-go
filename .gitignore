@@ -1,4 +1,6 @@
 drivers/*/olake
+/drivers/*/logs/
+/drivers/*/user_id.txt
 .vscode
 test
 # `test` matches any depth; keep the Iceberg writer's Maven test sources.

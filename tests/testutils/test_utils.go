@@ -423,8 +423,15 @@ func writeJSONDoc(path string, doc map[string]interface{}) error {
 // container as the test user, but as root when it cannot look the user up. On Linux the test user
 // can replace a root-owned file a previous run left behind, but cannot truncate it.
 func WriteHostFile(path string, data []byte) error {
-	_ = os.Remove(path)
-	return os.WriteFile(path, data, 0600)
+	root, err := os.OpenRoot(filepath.Dir(path))
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+
+	name := filepath.Base(path)
+	_ = root.Remove(name)
+	return root.WriteFile(name, data, 0600)
 }
 
 // NormalizeStreamName uppercases the stream name for drivers whose catalogs store

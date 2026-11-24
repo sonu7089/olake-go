@@ -1,0 +1,6 @@
+{
+  "region": "us-east-1",
+  "endpoint": "http://host.docker.internal:8000",
+  "max_threads": 4,
+  "retry_count": 3
+}

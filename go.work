@@ -5,6 +5,7 @@ toolchain go1.26.11
 use (
 	.
 	./drivers/db2
+	./drivers/dynamodb
 	./drivers/kafka
 	./drivers/mongodb
 	./drivers/mssql

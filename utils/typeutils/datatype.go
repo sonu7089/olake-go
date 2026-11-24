@@ -170,7 +170,7 @@ func MaximumOnDataType[T any](typ types.DataType, a, b T) (T, error) {
 			return a, fmt.Errorf("failed to reformat[%v] while comparing: %s", b, err)
 		}
 
-		if utils.MaxDate(adate, bdate) == adate {
+		if !adate.Before(bdate) {
 			return a, nil
 		}
 

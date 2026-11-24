@@ -88,9 +88,11 @@ func TestSignalAwareRootContextCancelsOnSignal(t *testing.T) {
 
 	// Parent-mode branch: spawns one helper child per signal case and fails
 	// the subtest if the child exits non-zero.
+	testBinary, err := os.Executable()
+	require.NoError(t, err)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := exec.Command(os.Args[0], "-test.run=TestSignalAwareRootContextCancelsOnSignal")
+			cmd := exec.Command(testBinary, "-test.run=TestSignalAwareRootContextCancelsOnSignal")
 			cmd.Env = append(os.Environ(), "OLAKE_SIGNAL_CONTEXT_HELPER=1", "OLAKE_TEST_SIGNAL="+tt.env)
 
 			if output, err := cmd.CombinedOutput(); err != nil {

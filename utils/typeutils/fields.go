@@ -135,7 +135,6 @@ func (f Fields) ToTypeSchema() *types.TypeSchema {
 // Field is a data type holder with occurrences
 type Field struct {
 	dataType       *types.DataType
-	isNull         bool
 	typeOccurrence map[types.DataType]bool
 }
 
@@ -184,22 +183,6 @@ func (f *Field) Types() []types.DataType {
 	}
 
 	return typs
-}
-
-func (f *Field) setNullable() {
-	f.isNull = true
-}
-
-func (f *Field) isNullable() bool {
-	if f.isNull {
-		return true
-	}
-
-	if _, found := f.typeOccurrence[types.Null]; found {
-		return true
-	}
-
-	return false
 }
 
 // Merge adds new type occurrences

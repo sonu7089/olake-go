@@ -23,17 +23,18 @@ const (
 	S3       DriverType = "s3"
 	Kafka    DriverType = "kafka"
 	MSSQL    DriverType = "mssql"
+	DynamoDB DriverType = "dynamodb"
 )
 
 // Drivers lists every driver the suites cover
-var Drivers = []DriverType{MongoDB, Postgres, MySQL, Oracle, DB2, S3, Kafka, MSSQL}
+var Drivers = []DriverType{MongoDB, Postgres, MySQL, Oracle, DB2, S3, Kafka, MSSQL, DynamoDB}
 
 // CdcTimestamp is the column name olake writes the CDC event timestamp into.
 const CdcTimestamp = "_cdc_timestamp"
 
 // SkipCDCDrivers are drivers that do not run a CDC-based sync. Unlike the identifiers above this is
 // test-side policy, not an olake contract -- it decides which suites skip their CDC subtests.
-var SkipCDCDrivers = []DriverType{Oracle, DB2, S3}
+var SkipCDCDrivers = []DriverType{Oracle, DB2, S3, DynamoDB}
 
 // UppercaseStreamDrivers are drivers whose sources name objects in uppercase, so discover writes
 // uppercase stream names and a test patching streams.json by name must match that casing.

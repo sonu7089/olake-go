@@ -9,6 +9,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestSourceCursorThreadKey(t *testing.T) {
+	key, err := sourceCursorThreadKey("first", "second", "a", "b_c")
+	require.NoError(t, err)
+	nextKey, err := sourceCursorThreadKey("first", "second", "a_b", "c")
+	require.NoError(t, err)
+	require.NotEqual(t, key, nextKey)
+
+	emptyKey, err := sourceCursorThreadKey("first", "", nil, nil)
+	require.NoError(t, err)
+	textKey, err := sourceCursorThreadKey("first", "", "<nil>", nil)
+	require.NoError(t, err)
+	require.NotEqual(t, emptyKey, textKey)
+}
+
 func TestAbstractDriverFormatCursorValue(t *testing.T) {
 	decimalCursor := func(dataType types.DataType, text string) typeutils.Decimal {
 		value, err := typeutils.ReformatDecimal(dataType, text)
